@@ -1,4 +1,4 @@
-# NM x lemonxdop
+# NM x Lemonxdop
 
 Discord bot + selfbot autocatcher stack for Pokétwo-style workflows. It includes slash/prefix control commands, a local web dashboard, and optional AI-assisted catching.
 
