@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>lemonxdop Dashboard</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #0d0d14; color: #f3f3f7; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #171726; border: 1px solid #2b2b42; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    h1 { margin: 0 0 14px; font-size: 22px; color: #ff5ca8; }
+    h2 { margin: 0 0 10px; font-size: 16px; color: #ffd3e8; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .stat { min-width: 170px; background: #10101a; border: 1px solid #2b2b42; border-radius: 10px; padding: 10px; }
+    .stat b { color: #ff5ca8; }
+    button { border: 0; border-radius: 8px; padding: 9px 12px; cursor: pointer; font-weight: 700; }
+    .btn-green { background: #26b46a; color: #fff; }
+    .btn-red { background: #d3496b; color: #fff; }
+    .btn-pink { background: #ff5ca8; color: #fff; }
+    input, textarea { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 10px; border-radius: 8px; border: 1px solid #39395a; background: #0f0f19; color: #fff; }
+    textarea { min-height: 90px; resize: vertical; font-family: Consolas, monospace; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border-bottom: 1px solid #2b2b42; text-align: left; padding: 8px; font-size: 14px; }
+    .muted { color: #a7a7ba; }
+    .ok { color: #50d995; }
+    .bad { color: #ff7f9f; }
+    #msg { margin-top: 8px; font-size: 14px; }
+    #liveLogs { max-height: 280px; overflow: auto; background: #10101a; border: 1px solid #2b2b42; border-radius: 10px; padding: 8px; }
+    .logline { font-family: Consolas, monospace; font-size: 13px; color: #ffd3e8; padding: 4px 0; border-bottom: 1px dashed #2b2b42; }
+    .logline:last-child { border-bottom: 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>lemonxdop Dashboard</h1>
+    <div class="row" style="justify-content:flex-end; margin-bottom:10px;">
+      <button id="logoutBtn" class="btn-red">Logout</button>
+    </div>
+
+    <div class="card">
+      <h2>System</h2>
+      <div id="stats" class="row"></div>
+      <div class="row" style="margin-top: 10px;">
+        <button id="startBtn" class="btn-green">Start</button>
+        <button id="stopBtn" class="btn-red">Stop</button>
+        <label class="row" style="margin-left: 8px;">
+          <input id="aiCatchToggle" type="checkbox" style="width:auto; margin:0;" />
+          <span>AI Catch</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Token Manager</h2>
+      <textarea id="tokenInput" placeholder="Paste token(s), one per line"></textarea>
+      <div class="row">
+        <button id="addBtn" class="btn-pink">Add Token</button>
+        <button id="clearBtn" class="btn-red">Clear All</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Token</th><th>User</th><th>Status</th><th>Action</th></tr>
+        </thead>
+        <tbody id="tokenRows"></tbody>
+      </table>
+      <div id="msg" class="muted"></div>
+    </div>
+
+    <div class="card">
+      <h2>Config</h2>
+      <div class="row" style="align-items:flex-start;">
+        <div style="flex: 1 1 320px;">
+          <h2 style="font-size: 14px; color:#ffd3e8; margin-top:0;">AI Prediction</h2>
+          <input id="aiHostname" placeholder="AI Hostname (example: http://host:port)" />
+          <input id="aiLicenseKey" type="password" placeholder="AI License Key (leave empty to keep)" />
+        </div>
+        <div style="flex: 1 1 320px;">
+          <h2 style="font-size: 14px; color:#ffd3e8; margin-top:0;">Captcha Solver</h2>
+          <input id="captchaSolveUrl" placeholder="Captcha Solve URL" />
+          <input id="captchaLicenseKey" type="password" placeholder="Captcha License Key (leave empty to keep)" />
+        </div>
+      </div>
+      <div class="row" style="margin-top: 10px;">
+        <button id="saveConfigBtn" class="btn-pink">Save Config</button>
+      </div>
+      <div id="configMsg" class="muted"></div>
+    </div>
+
+    <div class="card">
+      <h2>Live Catch Log</h2>
+      <div id="liveLogs"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    async function api(url, method = "GET", body) {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        window.location.href = "/login";
+        throw new Error("Unauthorized");
+      }
+      if (!res.ok) throw new Error(data.error || data.message || "Request failed");
+      return data;
+    }
+
+    function setMsg(text, ok = true) {
+      const msg = $("msg");
+      msg.textContent = text;
+      msg.className = ok ? "ok" : "bad";
+    }
+
+    function setConfigMsg(text, ok = true) {
+      const el = $("configMsg");
+      if (!el) return;
+      el.textContent = text;
+      el.className = ok ? "ok" : "bad";
+    }
+
+    function fmtMs(ms) {
+      const s = Math.floor(ms / 1000);
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      return `${h}h ${m}m ${sec}s`;
+    }
+
+    function fmtTime(ts) {
+      const d = new Date(ts);
+      return d.toLocaleTimeString();
+    }
+
+    function addLogLine(item) {
+      if (!item || !item.message) return;
+      const root = $("liveLogs");
+      const row = document.createElement("div");
+      row.className = "logline";
+      row.textContent = `[${fmtTime(item.timestamp || Date.now())}] ${item.message}`;
+      root.prepend(row);
+      while (root.children.length > 120) root.removeChild(root.lastChild);
+    }
+
+    async function refreshStatus() {
+      const st = await api("/api/status");
+      const catches = Number(st.totalCatches) || 0;
+      const coins = Number(st.totalPokecoins) || 0;
+      $("stats").innerHTML = `
+        <div class="stat"><b>Bot</b><div>${st.botTag}</div></div>
+        <div class="stat"><b>Uptime</b><div>${fmtMs(st.uptimeMs)}</div></div>
+        <div class="stat"><b>Active Catchers</b><div>${st.activeAutocatchers}</div></div>
+        <div class="stat"><b>Saved Tokens</b><div>${st.savedTokens}</div></div>
+        <div class="stat"><b>Total Catches</b><div>${catches.toLocaleString()}</div></div>
+        <div class="stat"><b>Total Pokécoins</b><div>${coins.toLocaleString()}</div></div>
+      `;
+      $("aiCatchToggle").checked = !!st.aiCatch;
+    }
+
+    async function refreshConfig() {
+      const data = await api("/api/config");
+      const cfg = data.config || {};
+      $("aiHostname").value = cfg.aiHostname || "";
+      $("captchaSolveUrl").value = cfg.captchaSolveUrl || "";
+      const aiMask = cfg.aiLicenseKeyMasked || "N/A";
+      const capMask = cfg.captchaLicenseKeyMasked || "N/A";
+      $("aiLicenseKey").placeholder = `AI License Key (currently ${aiMask}, leave empty to keep)`;
+      $("captchaLicenseKey").placeholder = `Captcha License Key (currently ${capMask}, leave empty to keep)`;
+    }
+
+    async function refreshTokens() {
+      const data = await api("/api/tokens");
+      $("tokenRows").innerHTML = data.tokens.map((t) => `
+        <tr>
+          <td>${t.masked}</td>
+          <td class="${t.usernamePreview === "N/A" ? "muted" : "ok"}">${t.usernamePreview}</td>
+          <td class="${t.active ? "ok" : "muted"}">${t.active ? "Active" : "Saved only"}</td>
+          <td><button class="btn-red" onclick="removeToken('${t.value.replace(/'/g, "\\'")}')">Remove</button></td>
+        </tr>
+      `).join("") || `<tr><td colspan="4" class="muted">No tokens found.</td></tr>`;
+    }
+
+    async function removeToken(token) {
+      try {
+        const r = await api("/api/tokens/remove", "POST", { token });
+        setMsg(r.message || "Token removed.");
+        await refreshAll();
+      } catch (e) { setMsg(e.message, false); }
+    }
+    window.removeToken = removeToken;
+
+    async function refreshAll() {
+      await Promise.all([refreshStatus(), refreshTokens()]);
+    }
+
+    async function loadInitialCatchLogs() {
+      const data = await api("/api/catchlogs?limit=40");
+      $("liveLogs").innerHTML = "";
+      (data.logs || []).slice().reverse().forEach(addLogLine);
+    }
+
+    function connectCatchStream() {
+      const es = new EventSource("/api/catchlogs/stream");
+      es.addEventListener("catchlog", (ev) => {
+        try { addLogLine(JSON.parse(ev.data)); } catch {}
+      });
+      es.onerror = () => {
+        es.close();
+        setTimeout(connectCatchStream, 2000);
+      };
+    }
+
+    $("startBtn").onclick = async () => {
+      try { await api("/api/system/start", "POST"); setMsg("System started."); await refreshAll(); }
+      catch (e) { setMsg(e.message, false); }
+    };
+    $("stopBtn").onclick = async () => {
+      try { await api("/api/system/stop", "POST"); setMsg("System stopped."); await refreshAll(); }
+      catch (e) { setMsg(e.message, false); }
+    };
+    $("addBtn").onclick = async () => {
+      const raw = $("tokenInput").value || "";
+      const tokens = raw
+        .split(/\r?\n/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (tokens.length === 0) return setMsg("At least one token is required.", false);
+      try {
+        const r = tokens.length === 1
+          ? await api("/api/tokens/add", "POST", { token: tokens[0] })
+          : await api("/api/tokens/add-bulk", "POST", { tokens });
+        $("tokenInput").value = "";
+        setMsg(r.message || "Token(s) processed.");
+        await refreshAll();
+      } catch (e) { setMsg(e.message, false); }
+    };
+    $("clearBtn").onclick = async () => {
+      if (!confirm("Clear all tokens and stop all catchers?")) return;
+      try {
+        const r = await api("/api/tokens/clear", "POST");
+        setMsg(r.message || "Tokens cleared.");
+        await refreshAll();
+      } catch (e) { setMsg(e.message, false); }
+    };
+    $("aiCatchToggle").onchange = async (e) => {
+      try {
+        await api("/api/aicatch", "POST", { enabled: e.target.checked });
+        setMsg(`AI Catch ${e.target.checked ? "enabled" : "disabled"}.`);
+        await refreshStatus();
+      } catch (err) { setMsg(err.message, false); }
+    };
+
+    $("logoutBtn").onclick = async () => {
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+      window.location.href = "/login";
+    };
+
+    $("saveConfigBtn").onclick = async () => {
+      try {
+        setConfigMsg("", true);
+        const payload = {};
+        const aiHostname = $("aiHostname").value.trim();
+        const aiLicenseKey = $("aiLicenseKey").value.trim();
+        const captchaSolveUrl = $("captchaSolveUrl").value.trim();
+        const captchaLicenseKey = $("captchaLicenseKey").value.trim();
+
+        if (aiHostname) payload.aiHostname = aiHostname;
+        if (aiLicenseKey) payload.aiLicenseKey = aiLicenseKey;
+        if (captchaSolveUrl) payload.captchaSolveUrl = captchaSolveUrl;
+        if (captchaLicenseKey) payload.captchaLicenseKey = captchaLicenseKey;
+
+        const r = await api("/api/config/update", "POST", payload);
+        setConfigMsg(r.message || "Config updated.", true);
+        $("aiLicenseKey").value = "";
+        $("captchaLicenseKey").value = "";
+        await refreshConfig();
+      } catch (e) {
+        setConfigMsg(e.message, false);
+      }
+    };
+
+    Promise.all([refreshAll(), loadInitialCatchLogs(), refreshConfig()])
+      .then(() => connectCatchStream())
+      .catch((e) => setMsg(e.message, false));
+    setInterval(() => refreshStatus().catch(() => {}), 5000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Login</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #0d0d14; color: #fff; display: grid; min-height: 100vh; place-items: center; }
+    .card { width: min(420px, 92vw); background: #171726; border: 1px solid #2b2b42; border-radius: 12px; padding: 18px; }
+    h1 { margin: 0 0 14px; font-size: 22px; color: #ff5ca8; }
+    p { margin: 0 0 14px; color: #a7a7ba; font-size: 14px; }
+    input { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 10px; border-radius: 8px; border: 1px solid #39395a; background: #0f0f19; color: #fff; }
+    button { width: 100%; border: 0; border-radius: 8px; padding: 10px; background: #ff5ca8; color: #fff; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    #msg { margin-top: 10px; font-size: 14px; }
+    .bad { color: #ff7f9f; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Dashboard Login</h1>
+    <p>Sign in to manage your bot dashboard.</p>
+    <input id="username" placeholder="Username" />
+    <input id="password" type="password" placeholder="Password" />
+    <button id="loginBtn">Login</button>
+    <div id="msg"></div>
+  </div>
+
+  <script>
+    const msg = document.getElementById("msg");
+    async function login() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      msg.textContent = "";
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        msg.className = "bad";
+        msg.textContent = data.error || "Login failed.";
+        return;
+      }
+      window.location.href = "/";
+    }
+    document.getElementById("loginBtn").onclick = () => login().catch((e) => {
+      msg.className = "bad";
+      msg.textContent = e.message || "Login failed.";
+    });
+    document.getElementById("password").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") document.getElementById("loginBtn").click();
+    });
+  </script>
+</body>
+</html>
