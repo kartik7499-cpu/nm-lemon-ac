@@ -27,8 +27,6 @@ module.exports = {
 
   aiApiKey: "your_api_key",
 
-  aiLicenseKey: "your_api_key",
-
   aiMinConfidence: 65,
 
   captchaSolveUrl: "http://prem_eu1.bot_hosting.net:22498/solve",
