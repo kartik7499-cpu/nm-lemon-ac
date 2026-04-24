@@ -4,6 +4,7 @@ const wait = require("node:timers/promises").setTimeout;
 const { checkRarity, getImage, solveHint } = require("pokehint");
 const { log, formatPokemon, logHook, colors, safeSend, status } = require("../utils/utils");
 const { getName, getAIPrediction, sendCaptchaMessage, sendQuestMessage, sendRarityMessage } = require("../utils/api");
+const { normalizePokemonName } = require("../utils/nameResolver");
 const config = require("../config");
 const { owners } = config;
 const { getConfig: getRuntimeConfig } = require("../utils/runtimeConfig");
@@ -289,7 +290,7 @@ class AutoCatcher {
                     typeof rawMin === "number" && Number.isFinite(rawMin) ? rawMin : 65;
                   const passConfidence = minConfidence <= 0 || confidence >= minConfidence;
                   if (name && passConfidence) {
-  name = name.toLowerCase().trim();
+  name = normalizePokemonName(name);
 
   const waitTime = 2500 + Math.floor(Math.random() * 2000);
   await delay(waitTime);
