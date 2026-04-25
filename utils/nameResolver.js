@@ -41,6 +41,7 @@ function normalizePokemonName(name) {
     if (n.includes("dudunsparce")) return "dudunsparce";
     if (n.includes("shaymin")) return "shaymin";
     if (n.includes("mimikyu")) return "mimikyu";
+    if (n.includes("hippopotas")) return "hippopotas";
     if (n.includes("minior")) return "minior";
     if (n.includes("maushold")) return "maushold";
     if (n.includes("flabebe")) return "flabebe";
